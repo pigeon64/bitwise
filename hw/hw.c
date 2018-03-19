@@ -91,9 +91,10 @@ void buf_test() {
 }
 
 typedef enum TokenKind {
-    TOKEN_LSHIFT = 128, // Left shift operator "<<"
-    TOKEN_RSHIFT,       // Right shift operator ">>"
-    TOKEN_INT           // Integer literal, value stored in Token.val
+    TOKEN_LASTCHAR = 127,
+    TOKEN_LSHIFT,         // Left shift operator "<<"
+    TOKEN_RSHIFT,         // Right shift operator ">>"
+    TOKEN_INT             // Integer literal, value stored in Token.val
 } TokenKind;
 
 typedef struct Token {
@@ -213,6 +214,134 @@ void lex_test() {
 #undef assert_token
 
 #if 0
+
+    expr3 = INT
+    expr2 = [-~] expr2 | expr3
+    expr1 = expr2([*/%&] expr2)*
+    expr1 = expr2(LSHIFT expr2)*
+    expr1 = expr2(RSHIFT expr2)*
+    expr0 = expr1([+-|^] expr1)*
+    expr = expr0
+
+#endif
+
+
+typedef struct Symbol {
+
+    Token token;
+    struct Symbol *left;
+    struct Symbol *right;
+
+} Symbol;
+
+Symbol* parse_alloc(Symbol* left, Symbol *right) {
+    Symbol *sym = (Symbol*)xmalloc(sizeof(Symbol));
+    sym->token = token;
+    sym->left = left;
+    sym->right = right;
+    return sym;
+}
+
+//
+// Frees all alloc'd symbols in the given tree
+//
+void parse_free(Symbol *tree) {
+    // free the left child if it exists
+    if (tree->left) {
+        parse_free(tree->left);
+    }
+    // free the right child if it exists
+    if (tree->right) {
+        parse_free(tree->right);
+    }
+    free(tree);
+}
+
+void parse_dump(Symbol *tree) {
+    Token t = tree->token;
+    if (t.kind == TOKEN_INT) {
+        printf("%d", t.val);
+    } else {
+        putchar('(');
+        switch (t.kind) {
+        case TOKEN_LSHIFT:
+            printf("<< ");
+            break;
+        case TOKEN_RSHIFT:
+            printf(">> ");
+            break;
+        default:
+            printf("%c ", t.kind);
+            break;
+        }
+        // L, R => (+ L R)
+        // L    => (- L)
+        //      => INT
+        if (tree->left)
+            parse_dump(tree->left);
+
+        if (tree->right) {
+            putchar(' ');
+            parse_dump(tree->right);
+        }
+
+        putchar(')');
+    }
+}
+
+Symbol* parse_expr(void);
+
+Symbol* parse_expr3(void) {
+    if (is_token(TOKEN_INT)) {
+        Symbol *sym = parse_alloc(NULL, NULL);
+        next_token();
+        return sym;
+    } else {
+        fatal("expected integer");
+        return NULL;
+    }
+}
+
+Symbol* parse_expr2(void) {
+    if (is_token('-') || is_token('~')) {
+        Symbol *sym = parse_alloc(NULL, NULL);
+        next_token();
+        sym->left = parse_expr2();
+        return sym;
+    } else {
+        return parse_expr3();
+    }
+}
+
+Symbol* parse_expr1(void) {
+    Symbol *left = parse_expr2();
+    while (is_token('*') || is_token('/') || is_token('%') || is_token('&')
+        || is_token(TOKEN_LSHIFT) || is_token(TOKEN_RSHIFT)) {
+        Symbol *sym = parse_alloc(left, NULL);
+        next_token();
+        sym->right = parse_expr2();
+        left = sym;
+    }
+    return left;
+}
+
+Symbol* parse_expr0(void) {
+    Symbol *left = parse_expr1();
+    while (is_token('+') || is_token('-') || is_token('|') || is_token('^')) {
+        Symbol *sym = parse_alloc(left, NULL);
+        next_token();
+        sym->right = parse_expr1();
+        left = sym;
+    }
+    return left;
+}
+
+Symbol* parse_expr(void) {
+    return parse_expr0();
+}
+
+
+#if 0
     expr3 = INT | '(' expr ')' 
     expr2 = '-' expr2 | expr3
     expr1 = expr2 ([*/] expr2)*
@@ -311,8 +440,19 @@ void run_tests() {
     //parse_test();
 }
 
+void foo(Symbol *buf) {
+    Symbol sym1 = (Symbol) { (Token) { .kind = TOKEN_INT, .val = 1 }, NULL, NULL };
+    buf_push(buf, sym1);
+}
+
 int main(int argc, char **argv) {
     run_tests();
+
+    init_stream("12*34+45/56+~25");
+    //init_stream("1+2*4");
+    Symbol *sym = parse_expr();
+    parse_dump(sym);
+    parse_free(sym);
     return 0;
 }
 
