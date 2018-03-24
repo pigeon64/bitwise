@@ -387,6 +387,26 @@ int eval(Expr *tree) {
     }
 }
 
+typedef enum Opcode {
+    OP_ADD,                 // Addition: PUSH(POP() + POP())
+    OP_SUB,                 // Subtraction: PUSH(POP() - POP())
+    OP_OR,                  // Bitwise OR: PUSH(POP() | POP())
+    OP_XOR,                 // Bitwise XOR: PUSH(POP() ^ POP())
+    OP_MUL,
+    OP_DIV,
+    OP_MOD,
+    OP_LSHIFT,
+    OP_RSHIFT,
+    OP_AND,
+    OP_NEG,                 // Negation: PUSH(-POP())
+    OP_NOT,                 // Bitwise NOT: PUSH(~POP())
+    OP_LIT,                 // Push encoded integer literal onto stack
+    OP_HALT
+
+} Opcode;
+
+
+
 #if 0
     expr3 = INT | '(' expr ')' 
     expr2 = '-' expr2 | expr3
