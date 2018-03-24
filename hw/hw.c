@@ -217,11 +217,11 @@ void lex_test() {
 
     expr3 = INT
     expr2 = [-~] expr2 | expr3
-    expr1 = expr2([*/%&] expr2)*
-    expr1 = expr2(LSHIFT expr2)*
-    expr1 = expr2(RSHIFT expr2)*
-    expr0 = expr1([+-|^] expr1)*
-    expr = expr0
+    expr1 = expr2 ([*/%&] expr2)*
+    expr1 = expr2 (LSHIFT expr2)*
+    expr1 = expr2 (RSHIFT expr2)*
+    expr0 = expr1 ([+-|^] expr1)*
+    expr  = expr0
 
 #endif
 
@@ -341,6 +341,52 @@ Symbol* parse_expr(void) {
 }
 
 
+//
+// Evaluate the given symbol tree
+//
+int eval(Symbol *tree) {
+    int left = (tree->left) ? eval(tree->left) : 0;
+    int right = (tree->right) ? eval(tree->right) : 0;
+    Token token = tree->token;
+    switch (token.kind) {
+    case TOKEN_INT:
+        return token.val;
+    case TOKEN_LSHIFT:
+        return left << right;
+    case TOKEN_RSHIFT:
+        return left >> right;
+    case '+':
+        return left + right;
+    case '-':
+        if (tree->right == NULL)
+            return -left; // negate operand
+            // TODO: this if statement would not be necessary if the child expression
+            // was stored in the right instead of the left since
+            // left - right == 0 - right == -right
+        else
+            return left - right;
+    case '|':
+        return left | right;
+    case '^':
+        return left ^ right;
+    case '*':
+        return left * right;
+    case '/':
+        if (right == 0)
+            fatal("cannot divide by 0");
+        return left / right;
+    case '%':
+        return left % right;
+    case '&':
+        return left & right;
+    case '~':
+        return ~left;
+    default:
+        fatal("unknown operand");
+        return 0;
+    }
+}
+
 #if 0
     expr3 = INT | '(' expr ')' 
     expr2 = '-' expr2 | expr3
@@ -452,6 +498,7 @@ int main(int argc, char **argv) {
     //init_stream("1+2*4");
     Symbol *sym = parse_expr();
     parse_dump(sym);
+    printf(" = %d\n", eval(sym));
     parse_free(sym);
     return 0;
 }
