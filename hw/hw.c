@@ -226,26 +226,26 @@ void lex_test() {
 #endif
 
 
-typedef struct Symbol {
+typedef struct Expr {
 
     Token token;
-    struct Symbol *left;
-    struct Symbol *right;
+    struct Expr *left;
+    struct Expr *right;
 
-} Symbol;
+} Expr;
 
-Symbol* parse_alloc(Symbol* left, Symbol *right) {
-    Symbol *sym = (Symbol*)xmalloc(sizeof(Symbol));
-    sym->token = token;
-    sym->left = left;
-    sym->right = right;
-    return sym;
+Expr* parse_alloc(Expr* left, Expr *right) {
+    Expr *expr = (Expr*)xmalloc(sizeof(Expr));
+    expr->token = token;
+    expr->left = left;
+    expr->right = right;
+    return expr;
 }
 
 //
 // Frees all alloc'd symbols in the given tree
 //
-void parse_free(Symbol *tree) {
+void parse_free(Expr *tree) {
     // free the left child if it exists
     if (tree->left) {
         parse_free(tree->left);
@@ -257,7 +257,7 @@ void parse_free(Symbol *tree) {
     free(tree);
 }
 
-void parse_dump(Symbol *tree) {
+void parse_dump(Expr *tree) {
     Token t = tree->token;
     if (t.kind == TOKEN_INT) {
         printf("%d", t.val);
@@ -289,54 +289,54 @@ void parse_dump(Symbol *tree) {
     }
 }
 
-Symbol* parse_expr(void);
+Expr* parse_expr(void);
 
-Symbol* parse_expr3(void) {
+Expr* parse_expr3(void) {
     if (is_token(TOKEN_INT)) {
-        Symbol *sym = parse_alloc(NULL, NULL);
+        Expr *expr = parse_alloc(NULL, NULL);
         next_token();
-        return sym;
+        return expr;
     } else {
         fatal("expected integer");
         return NULL;
     }
 }
 
-Symbol* parse_expr2(void) {
+Expr* parse_expr2(void) {
     if (is_token('-') || is_token('~')) {
-        Symbol *sym = parse_alloc(NULL, NULL);
+        Expr *expr = parse_alloc(NULL, NULL);
         next_token();
-        sym->left = parse_expr2();
-        return sym;
+        expr->left = parse_expr2();
+        return expr;
     } else {
         return parse_expr3();
     }
 }
 
-Symbol* parse_expr1(void) {
-    Symbol *left = parse_expr2();
+Expr* parse_expr1(void) {
+    Expr *left = parse_expr2();
     while (is_token('*') || is_token('/') || is_token('%') || is_token('&')
         || is_token(TOKEN_LSHIFT) || is_token(TOKEN_RSHIFT)) {
-        Symbol *sym = parse_alloc(left, NULL);
+        Expr *expr = parse_alloc(left, NULL);
         next_token();
-        sym->right = parse_expr2();
-        left = sym;
+        expr->right = parse_expr2();
+        left = expr;
     }
     return left;
 }
 
-Symbol* parse_expr0(void) {
-    Symbol *left = parse_expr1();
+Expr* parse_expr0(void) {
+    Expr *left = parse_expr1();
     while (is_token('+') || is_token('-') || is_token('|') || is_token('^')) {
-        Symbol *sym = parse_alloc(left, NULL);
+        Expr *expr = parse_alloc(left, NULL);
         next_token();
-        sym->right = parse_expr1();
-        left = sym;
+        expr->right = parse_expr1();
+        left = expr;
     }
     return left;
 }
 
-Symbol* parse_expr(void) {
+Expr* parse_expr(void) {
     return parse_expr0();
 }
 
@@ -344,7 +344,7 @@ Symbol* parse_expr(void) {
 //
 // Evaluate the given symbol tree
 //
-int eval(Symbol *tree) {
+int eval(Expr *tree) {
     int left = (tree->left) ? eval(tree->left) : 0;
     int right = (tree->right) ? eval(tree->right) : 0;
     Token token = tree->token;
@@ -486,17 +486,12 @@ void run_tests() {
     //parse_test();
 }
 
-void foo(Symbol *buf) {
-    Symbol sym1 = (Symbol) { (Token) { .kind = TOKEN_INT, .val = 1 }, NULL, NULL };
-    buf_push(buf, sym1);
-}
-
 int main(int argc, char **argv) {
     run_tests();
 
     init_stream("12*34+45/56+~25");
     //init_stream("1+2*4");
-    Symbol *sym = parse_expr();
+    Expr *sym = parse_expr();
     parse_dump(sym);
     printf(" = %d\n", eval(sym));
     parse_free(sym);
